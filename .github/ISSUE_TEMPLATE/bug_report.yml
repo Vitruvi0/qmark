@@ -1,0 +1,58 @@
+name: Bug report
+description: Something in qmark does not work as documented
+title: "[bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Security issues: please **do not**
+        open an issue — see SECURITY.md instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the bug, plus what you expected instead.
+      placeholder: Typing `git ?` inserts a literal ? instead of showing help...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. eval "$(qmark init zsh)"
+        2. type `git ` then press ?
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: qmark version / commit
+      placeholder: qmark 0.1.0 (or git commit hash)
+    validations:
+      required: true
+  - type: dropdown
+    id: shell
+    attributes:
+      label: Shell
+      options:
+        - zsh
+        - bash
+        - other (specify in the description)
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: macOS 15.5 / Ubuntu 24.04 / ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste any error output. This will be formatted as code automatically.
+      render: shell

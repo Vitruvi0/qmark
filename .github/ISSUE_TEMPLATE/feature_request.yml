@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an idea or improvement for qmark
+title: "[feat]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the friction you hit, not just the solution you have in mind.
+      placeholder: When I type `docker ?` I would like to see...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How you imagine it working (CLI surface, key binding, output...).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other tools or workarounds you tried, and why they are not enough.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This touches the CLI surface or key bindings (needs a design discussion first, see CONTRIBUTING.md)
