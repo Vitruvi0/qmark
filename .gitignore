@@ -1,0 +1,22 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+*.pdb
+
+# Keep Cargo.lock committed (this is a binary crate)
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env / secrets — never commit keys
+.env
+.env.*
+*.local
