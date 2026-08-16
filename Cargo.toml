@@ -1,0 +1,24 @@
+[package]
+name = "qmark"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Cisco-style `?` help for your terminal, with AI explanations in plain English."
+license = "MIT"
+repository = "https://github.com/advaisor/qmark"
+readme = "README.md"
+keywords = ["cli", "help", "terminal", "shell", "ai"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.5", features = ["derive"] }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
