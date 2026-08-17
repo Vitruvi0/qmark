@@ -5,6 +5,23 @@ paginate: true
 class: invert
 ---
 
+<!--
+Source of truth for the deck. The images in assets/slides/ and the PDF are
+derived from this file — regenerate both after editing it:
+
+  npx @marp-team/marp-cli@latest docs/SLIDES.md --images png -o assets/slides/slide.png
+  npx @marp-team/marp-cli@latest docs/SLIDES.md --pdf --allow-local-files -o docs/qmark-deck.pdf
+
+Console blocks are copied from the real binary output. Keep them that way.
+-->
+
+<style>
+section pre { font-size: 18px; line-height: 1.4; }
+section code { font-size: 0.95em; }
+/* the default theme's `lead` class only centers vertically */
+section.lead h1, section.lead h3, section.lead p { text-align: center; }
+</style>
+
 <!-- _class: lead invert -->
 
 # `qmark`
@@ -42,61 +59,103 @@ Router(config)# ip ?
 
 ## What it looks like
 
+Type a command, press `?`, and an interactive picker opens on the spot:
+
 ```console
 $ git ?
-  ── qmark ────────────────────────────────────────────
-  git — the stupid content tracker
-
-  Common subcommands:
-    clone      Clone a repository into a new directory
-    status     Show the working tree status
-    commit     Record changes to the repository
+── qmark ── help for `git` ── ↑↓ move · ⏎ insert · Esc close · 3/24
+  clone     Clone a repository into a new directory
+  init      Create an empty Git repository or reinitialize an existing one
+  add       Add file contents to the index
+  mv        Move or rename a file, a directory, or a symlink
+  restore   Restore working tree files
+  ...
+$ git add ▮
 ```
 
-Type a command, hit `?`, get context-sensitive help. That's it.
+↑↓ to move, Enter to insert the choice, Esc to leave the line untouched.
 
 ---
 
-## AI explanations
+## Subcommand-aware
+
+`?` answers for the command you are **actually** typing, not just its base:
+
+```console
+$ git mv ?
+── qmark ── help for `git mv` ──────────────────────────────
+  -v, --[no-]verbose  be verbose
+  -n, --[no-]dry-run  dry run
+  -f, --[no-]force    force move/rename even if target exists
+  -k                  skip move/rename errors
+  --[no-]sparse       allow updating entries outside of the sparse-checkout cone
+```
+
+It tries `git mv --help`, then `git mv -h`, then falls back to `git --help`.
+
+---
+
+## AI explanations — v0.2
+
+The CLI surface is frozen early, so today `explain` tells the truth:
 
 ```console
 $ qmark explain "tar -xzvf archive.tar.gz -C /tmp"
-  This extracts the compressed archive "archive.tar.gz" into the
-  /tmp folder, showing each file name while it works.
+── qmark ── explain ────────────────────────────────────────
+
+    tar -xzvf archive.tar.gz -C /tmp
+
+The AI backend is not wired up yet (this is the scaffold release).
+Once it lands, set QMARK_AI_PROVIDER and QMARK_AI_API_KEY to enable it.
 ```
 
-Plain English, **before** you run it.
-Designed for people who don't live in the terminal all day.
+**The goal for v0.2:** one plain-English sentence, before you run it —
+provider-agnostic (Anthropic, OpenAI-compatible, local Ollama), with an
+offline cache. Only the command line is ever sent. Never your history,
+environment or files.
 
 ---
 
 ## Features
 
 - **`?` at the prompt** — contextual help wired into zsh and bash
-- **`qmark suggest`** — the same help engine, callable directly
-- **`qmark explain`** — AI-powered plain-English explanations
+- **Interactive picker** — arrow keys, Enter inserts, Esc cancels
+- **Subcommand-aware** — `git mv ?` shows `git mv`'s flags
+- **Curated fallbacks** — tools whose help is unparseable still answer
+- **`qmark suggest`** — the same engine, callable directly
 - **Single static binary** — written in Rust, no runtime required
-
-Globs keep working: `ls file?.txt` inserts `?` normally.
 
 ---
 
 ## How it works
 
 ```
-┌─ shell (zsh ZLE widget / bash bind -x) ─┐
-│  intercepts `?` at the prompt           │
-│  passes the current line buffer to…     │
-└──────────────────┬──────────────────────┘
-                   ▼
-        ┌─ qmark (Rust binary) ─┐
-        │  parses the command    │
-        │  renders help / calls  │
-        │  the AI backend        │
-        └────────────────────────┘
+you type `git mv ` and press ?
+    │      ZLE widget (zsh) · bind -x (bash)
+    ▼
+qmark suggest --interactive -- "git mv "
+    │      harvests `git mv --help`, parses the option columns
+    ▼
+interactive picker, drawn on /dev/tty
+    │      Enter prints the chosen entry on stdout — and nothing else
+    ▼
+the shell splices it into the line:  git mv --dry-run
 ```
 
 Thin shell snippets, one small binary. Details in `docs/ARCHITECTURE.md`.
+
+---
+
+## Rules of the `?` key
+
+A shell can't intercept `?` unconditionally — it is a glob character:
+
+- `?` opens help **only** at the end of a line that ends with a space
+- `ls file?.txt` inserts a literal `?` — **globs keep working**
+- `qmark` not on `PATH` → plain `?`. Your prompt never breaks because of us
+- `QMARK_NO_BIND=1` loads the functions without binding the key
+
+These rules are a public contract: changing them needs an issue first.
 
 ---
 
@@ -111,15 +170,19 @@ cargo install --path .
 eval "$(qmark init zsh)"   # or: qmark init bash
 ```
 
+Then type a command, a space, and `?`.
+
 ---
 
 ## Roadmap
 
-- **v0** — repo scaffold, CLI skeleton, zsh/bash `?` binding
-- **v0.2** — AI backend for `explain`, offline cache
+- **v0** — repo scaffold, CLI skeleton, zsh/bash `?` binding,
+  interactive subcommand-aware picker
+- **v0.2** — AI backend for `explain`, offline cache, config file
 - **v0.3** — PowerShell support, tldr pages, man parsing
 
 > Status: **pre-alpha**, under active development.
+> APIs, commands and key bindings will change without notice.
 
 ---
 

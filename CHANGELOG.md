@@ -34,16 +34,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the choice. Its text is the binary's real output.
 - Diagrams in `docs/ARCHITECTURE.md` (mermaid, rendered natively by GitHub): shell layer ↔
   binary dataflow, the `?` binding decision rules, and the help-resolution ladder.
+- Slide deck rendered to images (`assets/slides/slide.001.png` … `012.png`) and to
+  `docs/qmark-deck.pdf`, shown as a clickable grid near the top of the README.
+  `docs/SLIDES.md` stays the source; the render commands are documented in its header.
+- Two new slides: the interactive picker and subcommand awareness (`git mv ?`).
 
 - Repository scaffold: README, MIT license, contributing guide, code of conduct, security
   policy, issue/PR templates, CI workflow.
 
 ### Changed
 
-- README and `docs/ARCHITECTURE.md` now describe what actually ships: the `?` example shows
-  the real picker output instead of invented help text, `explain` is shown as the stub it
-  currently is, and "base command only" is gone from the known limitations (subcommand
-  awareness landed).
+- README, `docs/ARCHITECTURE.md` and `docs/SLIDES.md` now describe what actually ships: the
+  `?` examples show the real picker output instead of invented help text, `explain` is shown
+  as the stub it currently is, and "base command only" is gone from the known limitations
+  (subcommand awareness landed).
 - `qmark` CLI skeleton (Rust + clap) with three subcommands:
   - `suggest` — contextual help for a (partial) command line, based on `--help` harvesting;
   - `explain` — plain-English explanation of a command line (AI backend not wired up yet);

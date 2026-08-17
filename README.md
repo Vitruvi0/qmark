@@ -18,6 +18,33 @@ command that uses AI to describe what a command line does in easy English, befor
 > **Project status:** pre-alpha, under active development. APIs, commands and key bindings
 > will change without notice. Not ready for production use.
 
+## The project in 12 slides
+
+Click any slide for full size — or read the whole deck as a [PDF](docs/qmark-deck.pdf). Source: [`docs/SLIDES.md`](docs/SLIDES.md).
+
+<table>
+  <tr>
+    <td width="33%"><a href="assets/slides/slide.001.png"><img src="assets/slides/slide.001.png" alt="Title slide"></a></td>
+    <td width="33%"><a href="assets/slides/slide.002.png"><img src="assets/slides/slide.002.png" alt="The problem"></a></td>
+    <td width="33%"><a href="assets/slides/slide.003.png"><img src="assets/slides/slide.003.png" alt="The idea — Cisco's ?"></a></td>
+  </tr>
+  <tr>
+    <td width="33%"><a href="assets/slides/slide.004.png"><img src="assets/slides/slide.004.png" alt="What it looks like"></a></td>
+    <td width="33%"><a href="assets/slides/slide.005.png"><img src="assets/slides/slide.005.png" alt="Subcommand-aware"></a></td>
+    <td width="33%"><a href="assets/slides/slide.006.png"><img src="assets/slides/slide.006.png" alt="AI explanations (v0.2)"></a></td>
+  </tr>
+  <tr>
+    <td width="33%"><a href="assets/slides/slide.007.png"><img src="assets/slides/slide.007.png" alt="Features"></a></td>
+    <td width="33%"><a href="assets/slides/slide.008.png"><img src="assets/slides/slide.008.png" alt="How it works"></a></td>
+    <td width="33%"><a href="assets/slides/slide.009.png"><img src="assets/slides/slide.009.png" alt="Rules of the ? key"></a></td>
+  </tr>
+  <tr>
+    <td width="33%"><a href="assets/slides/slide.010.png"><img src="assets/slides/slide.010.png" alt="Getting started"></a></td>
+    <td width="33%"><a href="assets/slides/slide.011.png"><img src="assets/slides/slide.011.png" alt="Roadmap"></a></td>
+    <td width="33%"><a href="assets/slides/slide.012.png"><img src="assets/slides/slide.012.png" alt="Try it — closing slide"></a></td>
+  </tr>
+</table>
+
 ## Why
 
 - `man` pages are complete but overwhelming; `--help` output is dense and inconsistent.
