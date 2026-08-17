@@ -1,9 +1,10 @@
 # qmark bash integration
 # Install: add to ~/.bashrc →  eval "$(qmark init bash)"
 #
-# Cisco-style `?`: when the line ends with a space (e.g. `git `), pressing `?`
-# shows contextual help for what you have typed so far. A `?` inside a word
-# (globs like `ls file?.txt`) is inserted normally, so nothing breaks.
+# Cisco-style `?`: when the line ends with a space (e.g. `git mv `), pressing
+# `?` opens an interactive picker of what can come next; choosing an entry
+# appends it to the line. A `?` inside a word (globs like `ls file?.txt`) is
+# inserted normally, so nothing breaks.
 #
 # Opt-out of the key binding (keeping the functions available):
 #   export QMARK_NO_BIND=1   # before the eval line
@@ -30,7 +31,12 @@ __qmark_widget() {
   fi
 
   printf '\n'
-  qmark suggest -- "$line"
+  local sel
+  sel="$(qmark suggest --interactive -- "$line")"
+  if [[ -n "$sel" ]]; then
+    READLINE_LINE="${line}${sel} "
+    READLINE_POINT=${#READLINE_LINE}
+  fi
 }
 
 if [[ "${QMARK_NO_BIND:-0}" != 1 && $- == *i* ]]; then

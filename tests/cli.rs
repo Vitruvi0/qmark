@@ -32,7 +32,8 @@ fn init_zsh_prints_widget() {
         .assert()
         .success()
         .stdout(predicate::str::contains("qmark-widget"))
-        .stdout(predicate::str::contains("bindkey '?'"));
+        .stdout(predicate::str::contains("bindkey '?'"))
+        .stdout(predicate::str::contains("suggest --interactive"));
 }
 
 #[test]
@@ -42,7 +43,8 @@ fn init_bash_prints_widget() {
         .assert()
         .success()
         .stdout(predicate::str::contains("__qmark_widget"))
-        .stdout(predicate::str::contains("bind -x"));
+        .stdout(predicate::str::contains("bind -x"))
+        .stdout(predicate::str::contains("suggest --interactive"));
 }
 
 #[test]
@@ -62,12 +64,98 @@ fn suggest_known_command_shows_help() {
 }
 
 #[test]
+fn suggest_is_subcommand_aware() {
+    // `cargo build --help` exists and lists `--release`; the header must show
+    // the full chain, not just the base command.
+    qmark()
+        .args(["suggest", "--", "cargo build "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("help for `cargo build`"))
+        .stdout(predicate::str::contains("--release"));
+}
+
+#[test]
+fn suggest_interactive_without_tty_falls_back_to_list() {
+    qmark()
+        .args(["suggest", "--interactive", "--", "cargo "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("help for `cargo`"));
+}
+
+#[test]
+fn suggest_ssh_uses_curated_entries() {
+    // ssh has no --help; qmark falls back to its built-in curated table.
+    qmark()
+        .args(["suggest", "--", "ssh "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("-p"))
+        .stdout(predicate::str::contains("-i"));
+}
+
+#[test]
+fn suggest_find_prefers_curated_over_descriptionless_rows() {
+    qmark()
+        .args(["suggest", "--", "find "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("-iname"))
+        .stdout(predicate::str::contains("case insensitive"));
+}
+
+#[test]
+fn suggest_openssl_lists_subcommands() {
+    // openssl's `--help` is an uncolumned grid; the curated table lists its
+    // common subcommands instead.
+    qmark()
+        .args(["suggest", "--", "openssl "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "s_client  test/debug a TLS connection to a server",
+        ));
+}
+
+#[test]
+fn suggest_ps_uses_curated_entries() {
+    qmark()
+        .args(["suggest", "--", "ps "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("aux"));
+}
+
+#[test]
+fn suggest_handles_shell_builtins() {
+    // `cd` is not a file in PATH; help comes from bash's `help` builtin.
+    qmark()
+        .args(["suggest", "--", "cd "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("help for `cd`"))
+        .stdout(predicate::str::contains("-P"));
+}
+
+#[test]
+fn suggest_curated_covers_uninstalled_security_tools() {
+    // nmap may not be installed, but its curated table still answers `nmap ?`.
+    qmark()
+        .args(["suggest", "--", "nmap "])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("-sV"))
+        .stdout(predicate::str::contains("-p"));
+}
+
+#[test]
 fn suggest_unknown_command_fails_gracefully() {
     qmark()
         .args(["suggest", "--", "definitely-not-a-real-command-qmark"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("not found in PATH"));
+        .stderr(predicate::str::contains("no help available"));
 }
 
 #[test]
