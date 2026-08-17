@@ -13,7 +13,7 @@ qmark is pre-alpha; only the latest commit on `main` is supported.
 
 Please **do not open a public issue** for security problems.
 
-Email **rd.team@advaisor.it** with:
+Email **diegno.ragni@gmail.com** with:
 
 - a description of the issue and its impact,
 - steps to reproduce (a minimal PoC helps a lot),
