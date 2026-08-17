@@ -11,7 +11,7 @@ external contributors.
 2. Clone the repo and build:
 
    ```sh
-   git clone https://github.com/advaisor/qmark.git
+   git clone https://github.com/Vitruvi0/qmark.git
    cd qmark
    cargo build
    cargo test

@@ -2,7 +2,7 @@
 
 > Cisco-style `?` help, right in your terminal — with AI explanations in plain English.
 
-[![CI](https://github.com/advaisor/qmark/actions/workflows/ci.yml/badge.svg)](https://github.com/advaisor/qmark/actions/workflows/ci.yml)
+[![CI](https://github.com/Vitruvi0/qmark/actions/workflows/ci.yml/badge.svg)](https://github.com/Vitruvi0/qmark/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-red)
 
@@ -54,7 +54,7 @@ $ qmark explain "tar -xzvf archive.tar.gz -C /tmp"
 Pre-built binaries are not published yet. Build from source:
 
 ```sh
-git clone https://github.com/advaisor/qmark.git
+git clone https://github.com/Vitruvi0/qmark.git
 cd qmark
 cargo install --path .
 ```
