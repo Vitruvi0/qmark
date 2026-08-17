@@ -122,4 +122,4 @@ See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
 
 ## License
 
-[MIT](LICENSE) © 2026 advAIsor R&D Team
+[MIT](LICENSE) © 2026 Vitruvi0
