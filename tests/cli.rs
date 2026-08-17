@@ -76,12 +76,25 @@ fn suggest_is_subcommand_aware() {
 }
 
 #[test]
-fn suggest_interactive_without_tty_falls_back_to_list() {
+fn suggest_interactive_without_tty_falls_back_to_list_on_stderr() {
+    // In interactive mode the widget captures stdout with $(...) and inserts
+    // it into the command line, so the fallback list must go to stderr.
     qmark()
         .args(["suggest", "--interactive", "--", "cargo "])
         .assert()
         .success()
-        .stdout(predicate::str::contains("help for `cargo`"));
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("help for `cargo`"));
+}
+
+#[test]
+fn suggest_interactive_empty_line_keeps_stdout_clean() {
+    qmark()
+        .args(["suggest", "--interactive", "--", "   "])
+        .assert()
+        .success()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("Type part of a command"));
 }
 
 #[test]

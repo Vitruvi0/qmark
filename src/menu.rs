@@ -56,7 +56,12 @@ pub fn pick(tty: &mut File, title: &str, entries: &[Entry]) -> Result<Option<Str
 
 fn pick_inner(tty: &mut File, title: &str, entries: &[Entry]) -> Result<Option<String>> {
     let rows = entries.len().min(VISIBLE);
-    let width = entries.iter().map(|e| e.display.len()).max().unwrap_or(0);
+    // chars, not bytes: `{:<width$}` pads by char count.
+    let width = entries
+        .iter()
+        .map(|e| e.display.chars().count())
+        .max()
+        .unwrap_or(0);
     let mut selected = 0usize;
     let mut offset = 0usize;
     let mut first = true;

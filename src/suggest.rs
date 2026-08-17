@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, bail};
@@ -12,9 +13,18 @@ const MAX_LINES: usize = 40;
 /// With `interactive`, entries become a picker on the tty and the chosen entry
 /// is printed to stdout (the shell widget inserts it into the line).
 pub fn run(line: &str, interactive: bool) -> Result<()> {
+    // In interactive mode stdout is captured by the shell widget and inserted
+    // into the command line, so anything that is not a chosen entry must go to
+    // stderr (which stays on the tty).
+    let mut out: Box<dyn Write> = if interactive {
+        Box::new(std::io::stderr())
+    } else {
+        Box::new(std::io::stdout())
+    };
+
     let line = line.trim();
     if line.is_empty() {
-        println!("Type part of a command first, then `?` — e.g. `git ?`");
+        writeln!(out, "Type part of a command first, then `?` — e.g. `git ?`")?;
         return Ok(());
     }
 
@@ -54,7 +64,7 @@ pub fn run(line: &str, interactive: bool) -> Result<()> {
         // No usable tty (piped, tests, dumb terminal) — fall through to the list.
     }
 
-    print_plain(&title, &text, &entries, line)
+    print_plain(&mut out, &title, &text, &entries, line)
 }
 
 /// Run the deepest help invocation that yields structured entries.
@@ -127,38 +137,49 @@ fn builtin_help(base: &str) -> Option<String> {
 
 /// Non-interactive output: the structured list when we have one, otherwise the
 /// raw help dump (old v0 behaviour).
-fn print_plain(title: &str, text: &str, entries: &[Entry], line: &str) -> Result<()> {
-    println!("── qmark ── help for `{title}` {}", "─".repeat(30));
+fn print_plain(
+    out: &mut dyn Write,
+    title: &str,
+    text: &str,
+    entries: &[Entry],
+    line: &str,
+) -> Result<()> {
+    writeln!(out, "── qmark ── help for `{title}` {}", "─".repeat(30))?;
     if entries.is_empty() {
         let lines: Vec<&str> = text.lines().collect();
         for l in lines.iter().take(MAX_LINES) {
-            println!("{l}");
+            writeln!(out, "{l}")?;
         }
         if lines.len() > MAX_LINES {
-            println!(
+            writeln!(
+                out,
                 "… {} more lines — run `{title} --help` for the full text.",
                 lines.len() - MAX_LINES
-            );
+            )?;
         }
     } else {
         let width = entries
             .iter()
             .take(MAX_LINES)
-            .map(|e| e.display.len())
+            .map(|e| e.display.chars().count())
             .max()
             .unwrap_or(0);
         for e in entries.iter().take(MAX_LINES) {
-            println!("  {:<width$}  {}", e.display, e.desc);
+            writeln!(out, "  {:<width$}  {}", e.display, e.desc)?;
         }
         if entries.len() > MAX_LINES {
-            println!(
+            writeln!(
+                out,
                 "… {} more — run `{title} --help`.",
                 entries.len() - MAX_LINES
-            );
+            )?;
         }
     }
-    println!();
-    println!("Tip: `qmark explain \"{line}\"` gives a plain-English explanation (AI).");
+    writeln!(out)?;
+    writeln!(
+        out,
+        "Tip: `qmark explain \"{line}\"` gives a plain-English explanation (AI)."
+    )?;
     Ok(())
 }
 
@@ -216,6 +237,12 @@ fn parse_entries(help: &str) -> Vec<Entry> {
                 .split([',', ' ', '=', '['])
                 .next()
                 .unwrap_or(&positive);
+            // A prose bullet (`- see the manual`) parses to a bare `-`;
+            // that is not a flag row.
+            if first.trim_matches('-').is_empty() {
+                pending_desc = None;
+                continue;
+            }
             entries.push(Entry {
                 insert: first.to_string(),
                 display: left.to_string(),
@@ -487,6 +514,13 @@ Exit status:
         assert_eq!(entries[0].desc, "show container uptime");
         assert_eq!(entries[1].insert, "--version");
         assert_eq!(entries[1].desc, "Print version and exit successfully.");
+    }
+
+    #[test]
+    fn parse_entries_rejects_dash_bullet_prose() {
+        // A dash bullet with single spaces is prose, not a `-` flag.
+        let help = "  - see the manual for details\n";
+        assert!(parse_entries(help).is_empty());
     }
 
     #[test]
