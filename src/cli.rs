@@ -15,6 +15,10 @@ pub enum Command {
     /// This is what the `?` key binding calls under the hood. You can also use it
     /// directly: `qmark suggest git` or `qmark suggest -- "ls -la"`.
     Suggest {
+        /// Show an interactive picker on the terminal; the chosen entry is
+        /// printed to stdout (used by the shell widgets to insert it).
+        #[arg(long)]
+        interactive: bool,
         /// The (partial) command line to get help for
         #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
         line: Vec<String>,

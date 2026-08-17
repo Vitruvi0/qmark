@@ -42,7 +42,10 @@ $ qmark explain "tar -xzvf archive.tar.gz -C /tmp"
 ## Features
 
 - **`?` at the prompt** — Cisco-style contextual help for the command you are typing,
-  wired into your shell (zsh and bash in v1).
+  wired into your shell (zsh and bash in v1). The `?` stays visible on the line and an
+  interactive picker opens; choosing an entry inserts it in place of the `?`.
+- **Subcommand-aware** — `git mv ?` shows what can follow `git mv` (its flags), not just
+  the generic `git` command list.
 - **`qmark suggest`** — the same help engine, callable directly: pass any partial command
   line and get a readable summary of what it does and which options exist.
 - **`qmark explain`** — AI-powered, plain-English explanation of a full command line.
@@ -73,8 +76,9 @@ eval "$(qmark init zsh)"
 eval "$(qmark init bash)"
 ```
 
-After that, ending a command with a space and pressing `?` shows contextual help
-(a `?` typed inside a word, e.g. `ls file?.txt`, is inserted normally, so globs keep working).
+After that, ending a command with a space and pressing `?` opens an interactive menu of
+what can come next (↑↓ to move, Enter to insert, Esc to close). A `?` typed inside a word,
+e.g. `ls file?.txt`, is inserted normally, so globs keep working.
 
 ## Usage
 

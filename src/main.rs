@@ -1,5 +1,7 @@
 mod ai;
 mod cli;
+mod curated;
+mod menu;
 mod shells;
 mod suggest;
 
@@ -16,7 +18,7 @@ fn main() {
 fn run() -> Result<()> {
     let args = cli::Cli::parse();
     match args.command {
-        cli::Command::Suggest { line } => suggest::run(&line.join(" ")),
+        cli::Command::Suggest { interactive, line } => suggest::run(&line.join(" "), interactive),
         cli::Command::Explain { line } => ai::explain(&line.join(" ")),
         cli::Command::Init { shell } => shells::print_init(shell),
     }
