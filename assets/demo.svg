@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 400" width="820" height="400" role="img"
+     aria-label="Terminal demo: typing `git ` then ? opens the qmark picker; arrow keys move the selection to `add`; Enter inserts it, leaving `git add ` on the prompt.">
+  <!-- Hand-written animated terminal cast. Text is copied verbatim from
+       `qmark suggest "git "` output, so it cannot drift into fiction.
+       ponytail: no recorder toolchain (vhs/asciinema) — 8s CSS loop instead. -->
+  <style>
+    .t { font-family: SFMono-Regular, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+         font-size: 14px; white-space: pre; }
+    .fg   { fill: #c9d1d9 }
+    .dim  { fill: #8b949e }
+    .grn  { fill: #7ee787 }
+    .anim { animation-duration: 8s; animation-iteration-count: infinite;
+            animation-timing-function: steps(1, end); }
+
+    /* Prompt line, built up one keystroke at a time. */
+    #l1 { animation-name: l1 } #l2 { animation-name: l2 } #l3 { animation-name: l3 }
+    #l4 { animation-name: l4 } #l5 { animation-name: l5 } #l6 { animation-name: l6 }
+    @keyframes l1 { 0%,4.9% {opacity:1}  5%,100% {opacity:0} }
+    @keyframes l2 { 0%,4.9% {opacity:0}  5%,6.8% {opacity:1}  6.9%,100% {opacity:0} }
+    @keyframes l3 { 0%,6.8% {opacity:0}  6.9%,8.6% {opacity:1} 8.75%,100% {opacity:0} }
+    @keyframes l4 { 0%,8.6% {opacity:0}  8.75%,10.5% {opacity:1} 10.6%,100% {opacity:0} }
+    @keyframes l5 { 0%,10.5% {opacity:0} 10.6%,18.6% {opacity:1} 18.75%,100% {opacity:0} }
+    @keyframes l6 { 0%,18.6% {opacity:0} 18.75%,100% {opacity:1} }
+
+    /* Picker: appears on `?`, three header variants for the 1/24 → 3/24 counter. */
+    #picker { animation-name: fade }
+    @keyframes fade { 0%,21.1% {opacity:0} 21.25%,100% {opacity:1} }
+    #h1 { animation-name: h1 } #h2 { animation-name: h2 } #h3 { animation-name: h3 }
+    @keyframes h1 { 0%,31.1% {opacity:1} 31.25%,100% {opacity:0} }
+    @keyframes h2 { 0%,31.1% {opacity:0} 31.25%,38.6% {opacity:1} 38.75%,100% {opacity:0} }
+    @keyframes h3 { 0%,38.6% {opacity:0} 38.75%,100% {opacity:1} }
+
+    /* Reverse-video selection, exactly what menu.rs draws with SetAttribute(Reverse). */
+    #sel { fill: #ffffff; mix-blend-mode: difference; animation-name: sel }
+    @keyframes sel {
+      0%,21.1%    { opacity: 0; transform: translateY(0) }
+      21.25%      { opacity: 1; transform: translateY(0) }
+      31.25%      { opacity: 1; transform: translateY(21px) }
+      38.75%,100% { opacity: 1; transform: translateY(42px) }
+    }
+
+    /* Enter inserts the choice; the menu stays on screen above the new prompt. */
+    #out { animation-name: out }
+    @keyframes out { 0%,48.6% {opacity:0} 48.75%,100% {opacity:1} }
+  </style>
+
+  <rect x="0.5" y="0.5" width="819" height="399" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <path d="M0.5 34.5h819" stroke="#30363d"/>
+  <circle cx="21" cy="17" r="5" fill="#ff5f57"/>
+  <circle cx="39" cy="17" r="5" fill="#febc2e"/>
+  <circle cx="57" cy="17" r="5" fill="#28c840"/>
+  <text class="t dim" x="410" y="22" font-size="12" text-anchor="middle">zsh — qmark</text>
+
+  <g class="t">
+    <g class="anim" id="l1"><text x="18" y="62" class="grn">$ <tspan class="fg">▮</tspan></text></g>
+    <g class="anim" id="l2"><text x="18" y="62" class="grn">$ <tspan class="fg">g▮</tspan></text></g>
+    <g class="anim" id="l3"><text x="18" y="62" class="grn">$ <tspan class="fg">gi▮</tspan></text></g>
+    <g class="anim" id="l4"><text x="18" y="62" class="grn">$ <tspan class="fg">git▮</tspan></text></g>
+    <g class="anim" id="l5"><text x="18" y="62" class="grn">$ <tspan class="fg">git ▮</tspan></text></g>
+    <g class="anim" id="l6"><text x="18" y="62" class="grn">$ <tspan class="fg">git ?</tspan></text></g>
+
+    <g class="anim" id="picker">
+      <g class="anim dim" id="h1"><text x="18" y="90">── qmark ── help for `git` ── ↑↓ move · ⏎ insert · Esc close · 1/24</text></g>
+      <g class="anim dim" id="h2"><text x="18" y="90">── qmark ── help for `git` ── ↑↓ move · ⏎ insert · Esc close · 2/24</text></g>
+      <g class="anim dim" id="h3"><text x="18" y="90">── qmark ── help for `git` ── ↑↓ move · ⏎ insert · Esc close · 3/24</text></g>
+
+      <text x="35" y="115" class="fg">clone</text>    <text x="119" y="115" class="dim">Clone a repository into a new directory</text>
+      <text x="35" y="136" class="fg">init</text>     <text x="119" y="136" class="dim">Create an empty Git repository or reinitialize an existing one</text>
+      <text x="35" y="157" class="fg">add</text>      <text x="119" y="157" class="dim">Add file contents to the index</text>
+      <text x="35" y="178" class="fg">mv</text>       <text x="119" y="178" class="dim">Move or rename a file, a directory, or a symlink</text>
+      <text x="35" y="199" class="fg">restore</text>  <text x="119" y="199" class="dim">Restore working tree files</text>
+      <text x="35" y="220" class="fg">rm</text>       <text x="119" y="220" class="dim">Remove files from the working tree and from the index</text>
+      <text x="35" y="241" class="fg">bisect</text>   <text x="119" y="241" class="dim">Use binary search to find the commit that introduced a bug</text>
+      <text x="35" y="262" class="fg">diff</text>     <text x="119" y="262" class="dim">Show changes between commits, commit and working tree, etc</text>
+      <text x="35" y="283" class="fg">grep</text>     <text x="119" y="283" class="dim">Print lines matching a pattern</text>
+      <text x="35" y="304" class="fg">log</text>      <text x="119" y="304" class="dim">Show commit logs</text>
+      <text x="35" y="325" class="fg">show</text>     <text x="119" y="325" class="dim">Show various types of objects</text>
+      <text x="35" y="346" class="fg">status</text>   <text x="119" y="346" class="dim">Show the working tree status</text>
+
+      <rect id="sel" class="anim" x="12" y="100" width="796" height="21"/>
+    </g>
+
+    <g class="anim" id="out"><text x="18" y="374" class="grn">$ <tspan class="fg">git add ▮</tspan></text></g>
+  </g>
+</svg>

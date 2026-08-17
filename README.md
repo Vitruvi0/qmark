@@ -6,6 +6,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-red)
 
+<p align="center">
+  <img src="assets/demo.svg" alt="Typing `git ` and pressing ? opens the qmark picker; arrow keys move the selection to `add`, Enter inserts it, leaving `git add ` on the prompt." width="820">
+</p>
+
 If you have ever configured a Cisco device, you know the feeling: you type `?` and the CLI
 tells you exactly what you can do next. `qmark` brings that experience to your everyday
 terminal. Type a command, hit `?`, and get context-sensitive help — plus an `explain`
@@ -23,20 +27,33 @@ command that uses AI to describe what a command line does in easy English, befor
 
 ## What it looks like
 
+Press `?` after a space and an interactive picker opens on the spot (↑↓ to move, Enter to
+insert, Esc to close) — that is the animation above. The same engine is subcommand-aware,
+so it answers for the command you are actually typing:
+
 ```console
-$ git ?
-  ── qmark ────────────────────────────────────────────
-  git — the stupid content tracker
+$ git mv ?
+── qmark ── help for `git mv` ──────────────────────────────
+  -v, --[no-]verbose  be verbose
+  -n, --[no-]dry-run  dry run
+  -f, --[no-]force    force move/rename even if target exists
+  -k                  skip move/rename errors
+  --[no-]sparse       allow updating entries outside of the sparse-checkout cone
 
-  Common subcommands:
-    clone      Clone a repository into a new directory
-    status     Show the working tree status
-    commit     Record changes to the repository
-    ...
+Tip: `qmark explain "git mv"` gives a plain-English explanation (AI).
+```
 
+`explain` is a stub until v0.2 — the CLI surface is frozen early, on purpose:
+
+```console
 $ qmark explain "tar -xzvf archive.tar.gz -C /tmp"
-  This extracts the compressed archive "archive.tar.gz" into the
-  /tmp folder, showing each file name while it works.
+── qmark ── explain ────────────────────────────────────────
+
+    tar -xzvf archive.tar.gz -C /tmp
+
+The AI backend is not wired up yet (this is the scaffold release).
+Once it lands, set QMARK_AI_PROVIDER and QMARK_AI_API_KEY to enable it.
+See docs/ROADMAP.md (v0.2) for the plan.
 ```
 
 ## Features
@@ -102,9 +119,21 @@ Configuration lives in environment variables for now (a config file is on the
 
 ## How it works
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design. In short: a small Rust
-binary does the heavy lifting; thin shell snippets (a ZLE widget in zsh, `bind -x` in bash)
-intercept `?` at the prompt and call the binary with the current line buffer.
+A small Rust binary does the heavy lifting; thin shell snippets (a ZLE widget in zsh,
+`bind -x` in bash) intercept `?` at the prompt and call the binary with the current line
+buffer.
+
+```mermaid
+flowchart LR
+    A["you type<br><code>git mv </code>"] --> B(["press <code>?</code>"])
+    B --> C["shell widget<br><i>ZLE · bind -x</i>"]
+    C --> D["<code>qmark suggest</code><br>harvests <code>git mv --help</code>"]
+    D --> E["interactive picker<br>↑↓ · ⏎ · Esc"]
+    E --> F["choice inserted<br><code>git mv --dry-run </code>"]
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design — the `?` binding
+rules, the help-resolution ladder, and the AI provider plan.
 
 ## Roadmap
 

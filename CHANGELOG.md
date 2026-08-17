@@ -29,8 +29,21 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   nuclei, tcpdump, nc/ncat/netcat, aircrack-ng. These answer `?` even when the tool is
   not installed locally.
 
+- Animated terminal demo (`assets/demo.svg`, hand-written SVG, no recorder toolchain) shown
+  at the top of the README: typing `git `, pressing `?`, moving the selection and inserting
+  the choice. Its text is the binary's real output.
+- Diagrams in `docs/ARCHITECTURE.md` (mermaid, rendered natively by GitHub): shell layer ↔
+  binary dataflow, the `?` binding decision rules, and the help-resolution ladder.
+
 - Repository scaffold: README, MIT license, contributing guide, code of conduct, security
   policy, issue/PR templates, CI workflow.
+
+### Changed
+
+- README and `docs/ARCHITECTURE.md` now describe what actually ships: the `?` example shows
+  the real picker output instead of invented help text, `explain` is shown as the stub it
+  currently is, and "base command only" is gone from the known limitations (subcommand
+  awareness landed).
 - `qmark` CLI skeleton (Rust + clap) with three subcommands:
   - `suggest` — contextual help for a (partial) command line, based on `--help` harvesting;
   - `explain` — plain-English explanation of a command line (AI backend not wired up yet);
