@@ -31,5 +31,14 @@ Things we consider security-relevant in this project:
   that lets an attacker leverage this to run *other* commands or arguments is in scope.
 - The shell snippets printed by `qmark init` run inside the user's interactive shell.
   Injection into that snippet (e.g. via environment variables) is in scope.
-- `qmark explain` will send command lines to an AI backend. Leaking more than the user
-  asked to share (environment, files, history) is in scope.
+- `qmark explain` sends command lines to an AI backend (local by default — Ollama on
+  `localhost` — or a remote endpoint the user configured via `QMARK_AI_BASE_URL`). Only the
+  command line the user asked about is ever sent; leaking more than that (environment,
+  files, history) is in scope. For non-local endpoints, obvious secrets (password/token/
+  API-key flag values, `sk-`/`ghp_`-style tokens, `KEY=`/`SECRET=`-style assignments) are
+  redacted before the request is sent — a gap in that redaction is in scope. Local traffic
+  is not redacted, since it never leaves the machine.
+- `qmark ai model` may invoke the external `ollama` binary (`ollama pull <name>`) to install
+  a model. This runs only after an explicit `y/N` confirmation — never automatically and
+  never as a side effect of `qmark explain`. Anything that would trigger a pull without that
+  confirmation is in scope.

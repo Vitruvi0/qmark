@@ -95,24 +95,26 @@ It tries `git mv --help`, then `git mv -h`, then falls back to `git --help`.
 
 ---
 
-## AI explanations — v0.2
+## AI explanations — local by default
 
-The CLI surface is frozen early, so today `explain` tells the truth:
+`explain` talks to Ollama on `localhost` by default — nothing leaves your
+machine unless you point it elsewhere on purpose:
 
 ```console
-$ qmark explain "tar -xzvf archive.tar.gz -C /tmp"
+$ qmark explain "rm -rf ./build"
 ── qmark ── explain ────────────────────────────────────────
 
-    tar -xzvf archive.tar.gz -C /tmp
+    rm -rf ./build
 
-The AI backend is not wired up yet (this is the scaffold release).
-Once it lands, set QMARK_AI_PROVIDER and QMARK_AI_API_KEY to enable it.
+The command `rm -rf ./build` deletes the directory named `./build` and all its
+contents recursively. This is a destructive operation that can't be undone,
+so it's important to double-check the command before running it.
 ```
 
-**The goal for v0.2:** one plain-English sentence, before you run it —
-provider-agnostic (Anthropic, OpenAI-compatible, local Ollama), with an
-offline cache. Only the command line is ever sent. Never your history,
-environment or files.
+- **One wire format**, OpenAI chat-completions — Ollama, llama.cpp, LM Studio,
+  vLLM, hosted aggregators. No `Provider` trait needed.
+- **Grounded** in the target command's real `--help` options, cached on disk.
+- Only the command line is ever sent — never history, environment, files.
 
 ---
 
@@ -178,7 +180,8 @@ Then type a command, a space, and `?`.
 
 - **v0** — repo scaffold, CLI skeleton, zsh/bash `?` binding,
   interactive subcommand-aware picker
-- **v0.2** — AI backend for `explain`, offline cache, config file
+- **v0.2** — local-first AI backend for `explain`, offline cache,
+  `qmark ai status` / `qmark ai model`
 - **v0.3** — PowerShell support, tldr pages, man parsing
 
 > Status: **pre-alpha**, under active development.

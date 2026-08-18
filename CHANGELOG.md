@@ -9,6 +9,19 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Local-first AI backend for `qmark explain` (`src/ai.rs`): one wire format, OpenAI
+  chat-completions, over `ureq` — talks to Ollama on `localhost` by default, or any
+  OpenAI-compatible endpoint (llama.cpp, LM Studio, vLLM, hosted aggregators) via
+  `QMARK_AI_BASE_URL`. Grounded in the target command's real `--help` options (reusing
+  `suggest`'s harvester) so a small local model doesn't have to invent flags. Responses are
+  cached on disk (`~/.cache/qmark/explain`), keyed by model + command line. Obvious secrets
+  (password/token/API-key flags, `sk-`/`ghp_`-style tokens, `KEY=`/`SECRET=` assignments)
+  are redacted before the request when the endpoint is not local.
+- `qmark ai status`: endpoint, resolved model and its source, reachability, and cache size —
+  the diagnostic to ask for in a bug report.
+- `qmark ai model`: interactive picker (reuses the `?` key's picker) listing installed
+  models plus a small curated download list; picking an uninstalled one confirms before
+  running `ollama pull`. `qmark ai model <name>` sets one directly, non-interactively.
 - Subcommand-aware suggestions: `git mv ?` harvests help for `git mv` (with `-h` and
   base-command fallbacks), parsed into structured `entry — description` rows.
 - Interactive picker (`qmark suggest --interactive`): `?` opens an arrow-key menu on the
@@ -45,6 +58,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `qmark explain` is no longer a stub: it calls the configured AI backend (local by default)
+  and prints a real explanation. README, `docs/ARCHITECTURE.md` and `docs/SLIDES.md` updated
+  to match.
+- `QMARK_AI_PROVIDER` removed — with a single wire format it selected nothing, and it was
+  documented but never implemented. Replaced by `QMARK_AI_BASE_URL`, `QMARK_AI_MODEL`,
+  `QMARK_AI_API_KEY`, `QMARK_AI_TIMEOUT`.
 - README, `docs/ARCHITECTURE.md` and `docs/SLIDES.md` now describe what actually ships: the
   `?` examples show the real picker output instead of invented help text, `explain` is shown
   as the stub it currently is, and "base command only" is gone from the known limitations

@@ -118,15 +118,49 @@ Known limitations (tracked in ROADMAP):
 
 ## The explain command (AI)
 
-`explain` is an honest stub in v0 so the CLI surface is frozen early. The v0.2 design:
+`explain` (`src/ai.rs`) is local-first: by default it talks to Ollama on `localhost`, and
+nothing leaves the machine unless `QMARK_AI_BASE_URL` is pointed elsewhere on purpose. There
+is **one wire format** — OpenAI chat-completions — not a `Provider` trait with multiple
+implementations; Ollama, llama.cpp, LM Studio, vLLM and most hosted aggregators all speak
+it, so one implementation covers local and remote without an abstraction that would have had
+a single caller.
 
-- a `Provider` trait (`fn explain(&self, line: &str) -> Result<String>`) with
-  implementations for Anthropic, OpenAI-compatible endpoints and local models (Ollama);
-- selection via `QMARK_AI_PROVIDER` + `QMARK_AI_API_KEY` (config file later);
-- prompt fixed on "easy English, short, warn about destructive flags";
-- **only the command line the user asked about is sent** — never environment, history or
-  file contents (see SECURITY.md);
-- an on-disk cache keyed by command line, so repeated questions are free and offline.
+```mermaid
+flowchart TD
+    L["<code>qmark explain &lt;line&gt;</code>"] --> CH{"cached?<br><i>hash(model + line)</i>"}
+    CH -- hit --> OUT(["print explanation"])
+    CH -- miss --> RD{"endpoint local?"}
+    RD -- "no" --> RED["redact obvious secrets<br><i>-p/--token/sk-.../KEY=...</i>"]
+    RD -- "yes" --> GR
+    RED --> GR["harvest_entries(line)<br><i>reuses suggest's parser</i>"]
+    GR --> BLK["grounding block<br>≤25 entries, ≤1500 chars<br><i>omitted on harvest failure</i>"]
+    BLK --> REQ["POST {base_url}/chat/completions<br>system prompt + command + grounding"]
+    REQ -- "2xx, content" --> WR["write cache"]
+    WR --> OUT
+    REQ -- "unreachable / timeout /<br>non-2xx / empty content" --> ERR(["instructive error, exit 1<br><i>suggest and ? still work</i>"])
+```
+
+- **Grounding.** Before calling the model, `explain` resolves the command chain and harvests
+  entries the same way `suggest` does (`suggest::harvest_entries`), so a small model is shown
+  the real options of the real binary on this machine instead of recalling them from memory.
+  Bounded to 25 entries / 1500 characters; a harvesting failure is non-fatal and the
+  explanation proceeds ungrounded.
+- **Cache.** `$XDG_CACHE_HOME/qmark/explain/<hash>.txt` (`~/.cache/...` fallback), keyed by
+  model + command line via `DefaultHasher` — no crypto dependency, this is a convenience
+  cache, not a security boundary. The first line of each file records the exact model and
+  command line and is verified on read, so a hash collision is a miss, never a wrong answer
+  served confidently. Written on success only.
+- **Redaction.** Applied only when the endpoint is not local (not `localhost`/`127.0.0.1`/
+  `::1`) — with the default Ollama setup there is nothing to redact. A token-wise scan
+  strips password/token/API-key flag values, `sk-`/`ghp_`/`gho_`/`xoxb-`/`AKIA`-prefixed
+  tokens, and the value half of `KEY=`/`TOKEN=`/`SECRET=`/`PASSWORD=`-style assignments.
+- **Only the command line the user asked about is ever sent** — never environment, shell
+  history or file contents (see SECURITY.md).
+- **Model selection** (`src/ai/model.rs`) reuses the `?` picker (`src/menu.rs`): `qmark ai
+  model` lists installed models (from `GET {base_url}/models`) alongside a curated download
+  list; picking an uninstalled one confirms before running `ollama pull`. `qmark ai status`
+  (`src/ai/status.rs`) reports the endpoint, resolved model and its source, reachability, and
+  cache size.
 
 ## Shell snippet distribution
 
