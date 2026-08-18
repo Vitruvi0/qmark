@@ -67,6 +67,40 @@ pub fn run(line: &str, interactive: bool) -> Result<()> {
     print_plain(&mut out, &title, &text, &entries, line)
 }
 
+/// Resolve the command chain for `line` and harvest its help entries, for use
+/// as grounding by `ai::explain`. Reuses the same resolution order as `run`
+/// (real `--help`, shell builtin, curated fallback) but never prompts, never
+/// prints, and never fails loudly: any failure — unknown command, unparseable
+/// help, no entries at all — is simply `None`. Grounding is a nice-to-have,
+/// not a requirement (spec §4).
+pub fn harvest_entries(line: &str) -> Option<(String, Vec<Entry>)> {
+    let line = line.trim();
+    if line.is_empty() {
+        return None;
+    }
+    let chain = command_chain(line);
+    let base = chain[0];
+
+    let (title, mut entries) = if in_path(base) {
+        let (title, _text, entries) = harvest(&chain).ok()?;
+        (title, entries)
+    } else if let Some(text) = builtin_help(base) {
+        (base.to_string(), parse_entries(&text))
+    } else {
+        (base.to_string(), crate::curated::entries(base)?)
+    };
+
+    if low_quality(&entries) {
+        if let Some(rows) = crate::curated::entries(base) {
+            entries = rows;
+        }
+    }
+    if entries.is_empty() {
+        return None;
+    }
+    Some((title, entries))
+}
+
 /// Run the deepest help invocation that yields structured entries.
 ///
 /// Candidates, in order: `<base> <sub> --help`, `<base> <sub> -h` (git-style
@@ -521,6 +555,31 @@ Exit status:
         // A dash bullet with single spaces is prose, not a `-` flag.
         let help = "  - see the manual for details\n";
         assert!(parse_entries(help).is_empty());
+    }
+
+    #[test]
+    fn harvest_entries_grounds_a_real_command() {
+        let (title, entries) = harvest_entries("cargo ").expect("cargo is on PATH in tests");
+        assert_eq!(title, "cargo");
+        assert!(!entries.is_empty());
+    }
+
+    #[test]
+    fn harvest_entries_falls_back_to_curated_table() {
+        // ssh has no --help; the curated table still grounds it.
+        let (title, entries) = harvest_entries("ssh -p 22 ").expect("curated ssh entries");
+        assert_eq!(title, "ssh");
+        assert!(entries.iter().any(|e| e.insert == "-p"));
+    }
+
+    #[test]
+    fn harvest_entries_none_for_unknown_command() {
+        assert!(harvest_entries("definitely-not-a-real-command-qmark").is_none());
+    }
+
+    #[test]
+    fn harvest_entries_none_for_empty_line() {
+        assert!(harvest_entries("   ").is_none());
     }
 
     #[test]
