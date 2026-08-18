@@ -46,18 +46,9 @@ Tip: `qmark explain "git mv"` gives a plain-English explanation (AI).
 `explain` calls a local model by default — nothing leaves your machine unless you point
 `QMARK_AI_BASE_URL` somewhere else on purpose:
 
-```console
-$ qmark explain "rm -rf ./build"
-── qmark ── explain ────────────────────────────────────────
-
-    rm -rf ./build
-
-The command `rm -rf ./build` deletes the directory named `./build` and all its contents
-recursively. The `-r` option tells `rm` to remove directories and their contents, while the
-`-f` option forces deletion without prompting for confirmation. This is a destructive
-operation that can't be undone, so it's important to double-check the command before
-running it.
-```
+<p align="center">
+  <img src="assets/demo-explain.svg" alt="Typing `qmark explain &quot;rm -rf ./build&quot;`; after a short pause the plain-English explanation appears, warning that the operation is destructive and can't be undone." width="820">
+</p>
 
 ## Features
 
