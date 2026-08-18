@@ -21,5 +21,9 @@ fn run() -> Result<()> {
         cli::Command::Suggest { interactive, line } => suggest::run(&line.join(" "), interactive),
         cli::Command::Explain { line } => ai::explain(&line.join(" ")),
         cli::Command::Init { shell } => shells::print_init(shell),
+        cli::Command::Ai { command } => match command {
+            cli::AiCommand::Status => ai::status(),
+            cli::AiCommand::Model { name } => ai::model(name),
+        },
     }
 }

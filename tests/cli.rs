@@ -180,12 +180,280 @@ fn suggest_empty_line_is_friendly() {
         .stdout(predicate::str::contains("Type part of a command"));
 }
 
+/// A fresh temp dir for one test's env var (`$XDG_CACHE_HOME`,
+/// `$XDG_CONFIG_HOME`, ...), so a leftover file from an earlier run (or a
+/// concurrently running test) can never make this test's behaviour
+/// ambiguous. Cleaned up on drop.
+struct TempDir(std::path::PathBuf);
+
+impl TempDir {
+    fn new(name: &str) -> Self {
+        let dir = std::env::temp_dir().join(format!(
+            "qmark-cli-test-{name}-{}-{:?}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        TempDir(dir)
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Accept one connection on an ephemeral port and write back `response`
+/// (a raw HTTP/1.1 response, status line through body) verbatim. Returns
+/// the port to point `QMARK_AI_BASE_URL` at.
+fn spawn_fake_backend(response: String) -> u16 {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        use std::io::{Read, Write};
+        if let Ok((mut stream, _)) = listener.accept() {
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(500)));
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf); // drain the request; content doesn't matter here
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+        }
+    });
+    port
+}
+
 #[test]
-fn explain_is_an_honest_stub_for_now() {
+fn explain_calls_local_backend_and_prints_the_explanation() {
+    let explanation = "This extracts a gzip-compressed tar archive into /tmp.";
+    let json_body = format!(r#"{{"choices":[{{"message":{{"content":"{explanation}"}}}}]}}"#);
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        json_body.len(),
+        json_body
+    );
+    let port = spawn_fake_backend(response);
+    let cache = TempDir::new("success");
+
     qmark()
-        .args(["explain", "--", "tar -xzf archive.tar.gz"])
+        .args(["explain", "--", "tar -xzvf archive.tar.gz -C /tmp"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
         .assert()
         .success()
-        .stdout(predicate::str::contains("tar -xzf archive.tar.gz"))
-        .stdout(predicate::str::contains("not wired up yet"));
+        .stdout(predicate::str::contains(explanation));
+}
+
+#[test]
+fn explain_against_a_closed_port_fails_instructively() {
+    // Bind then immediately drop, guaranteeing the port is closed.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let cache = TempDir::new("closed-port");
+
+    qmark()
+        .args(["explain", "--", "tar -xzf archive.tar.gz"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("qmark ai model"))
+        .stderr(predicate::str::contains("suggest"));
+}
+
+#[test]
+fn explain_on_a_flag_first_line_fails_gracefully_without_panicking() {
+    // A command line that starts with a flag (`-x foo`, bare `-`) makes
+    // suggest::command_chain return an empty Vec; grounding must not panic
+    // indexing into it — it should just fall through to the ordinary
+    // backend-unreachable error, not a Rust panic (exit code 101).
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let cache = TempDir::new("flag-first-line");
+
+    qmark()
+        .args(["explain", "--", "-x foo"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("qmark ai model"));
+}
+
+// -- `qmark ai status` -------------------------------------------------
+
+#[test]
+fn ai_status_against_canned_backend_reports_reachable_and_model_source() {
+    let json_body = r#"{"data":[{"id":"qwen2.5-coder:3b"}]}"#;
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        json_body.len(),
+        json_body
+    );
+    let port = spawn_fake_backend(response);
+    let cache = TempDir::new("status-reachable-cache");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("reachable")
+                .and(predicate::str::contains("unreachable").not()),
+        )
+        .stdout(predicate::str::contains("test-model"))
+        .stdout(predicate::str::contains("$QMARK_AI_MODEL"));
+}
+
+/// Like `spawn_fake_backend`, but replies 200 to `/models` only when the
+/// request carries `Authorization: Bearer <expected_key>`, and 401
+/// otherwise — modelling a hosted endpoint (Groq, Together, OpenRouter)
+/// that requires the key on `/models` the same way `call_backend` already
+/// sends it on `/chat/completions`.
+fn spawn_fake_backend_requiring_auth(expected_key: &str) -> u16 {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    let expected_header = format!("authorization: bearer {}", expected_key.to_lowercase());
+    std::thread::spawn(move || {
+        use std::io::{Read, Write};
+        if let Ok((mut stream, _)) = listener.accept() {
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(500)));
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_lowercase();
+            let response = if request.contains(&expected_header) {
+                let body = r#"{"data":[]}"#;
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                )
+            } else {
+                "HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .to_string()
+            };
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+        }
+    });
+    port
+}
+
+#[test]
+fn ai_status_sends_api_key_on_the_models_probe() {
+    // Regression for the bug where `fetch_models_body` (used by both `ai
+    // status`'s reachability probe and `ai model`'s installed-models list)
+    // never sent `Authorization`, even though `call_backend` did — hosted
+    // endpoints reject an unauthenticated `/models` with 401/403, so a
+    // working endpoint with a key configured was reported "unreachable".
+    let port = spawn_fake_backend_requiring_auth("sk-test-key-123");
+    let cache = TempDir::new("status-api-key-header");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("QMARK_AI_API_KEY", "sk-test-key-123")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("reachable")
+                .and(predicate::str::contains("unreachable").not()),
+        );
+}
+
+#[test]
+fn ai_status_without_api_key_reports_unreachable_against_an_auth_requiring_endpoint() {
+    // Sanity check for the harness above, and proof the fix is
+    // conditional: without a key, the same endpoint still rejects the
+    // request, so "unreachable" is the honest answer.
+    let port = spawn_fake_backend_requiring_auth("sk-test-key-123");
+    let cache = TempDir::new("status-no-api-key-header");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env_remove("QMARK_AI_API_KEY")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("unreachable"));
+}
+
+#[test]
+fn ai_status_against_closed_port_reports_unreachable_and_still_exits_zero() {
+    // `ai status` is a diagnostic, not a health check that should fail the
+    // command — an unreachable backend is reported, never a non-zero exit.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let cache = TempDir::new("status-unreachable-cache");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("unreachable"));
+}
+
+// -- `qmark ai model` ---------------------------------------------------
+
+#[test]
+fn ai_model_without_tty_falls_back_to_plain_listing_without_prompting() {
+    // Bind then drop: a closed port so the (best-effort) installed-models
+    // fetch fails fast and deterministically instead of depending on
+    // whatever may or may not be listening on the default endpoint.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+
+    qmark()
+        .args(["ai", "model"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("available to download"))
+        .stdout(predicate::str::contains("qwen2.5-coder:1.5b"))
+        .stdout(predicate::str::contains("qmark ai model <any-name>"));
+}
+
+#[test]
+fn ai_model_name_writes_the_model_file_and_status_reports_source_file() {
+    let config = TempDir::new("model-config");
+    let cache = TempDir::new("model-status-cache");
+
+    qmark()
+        .args(["ai", "model", "somename"])
+        .env("XDG_CONFIG_HOME", &config.0)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("somename"));
+
+    qmark()
+        .args(["ai", "status"])
+        .env("XDG_CONFIG_HOME", &config.0)
+        .env("XDG_CACHE_HOME", &cache.0)
+        .env_remove("QMARK_AI_MODEL")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("somename"))
+        .stdout(predicate::str::contains(config.0.display().to_string()));
 }

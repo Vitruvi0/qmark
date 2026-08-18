@@ -43,17 +43,20 @@ $ git mv ?
 Tip: `qmark explain "git mv"` gives a plain-English explanation (AI).
 ```
 
-`explain` is a stub until v0.2 — the CLI surface is frozen early, on purpose:
+`explain` calls a local model by default — nothing leaves your machine unless you point
+`QMARK_AI_BASE_URL` somewhere else on purpose:
 
 ```console
-$ qmark explain "tar -xzvf archive.tar.gz -C /tmp"
+$ qmark explain "rm -rf ./build"
 ── qmark ── explain ────────────────────────────────────────
 
-    tar -xzvf archive.tar.gz -C /tmp
+    rm -rf ./build
 
-The AI backend is not wired up yet (this is the scaffold release).
-Once it lands, set QMARK_AI_PROVIDER and QMARK_AI_API_KEY to enable it.
-See docs/ROADMAP.md (v0.2) for the plan.
+The command `rm -rf ./build` deletes the directory named `./build` and all its contents
+recursively. The `-r` option tells `rm` to remove directories and their contents, while the
+`-f` option forces deletion without prompting for confirmation. This is a destructive
+operation that can't be undone, so it's important to double-check the command before
+running it.
 ```
 
 ## Features
@@ -66,7 +69,9 @@ See docs/ROADMAP.md (v0.2) for the plan.
 - **`qmark suggest`** — the same help engine, callable directly: pass any partial command
   line and get a readable summary of what it does and which options exist.
 - **`qmark explain`** — AI-powered, plain-English explanation of a full command line.
-  Designed for people who do not live in the terminal all day.
+  Local by default (talks to Ollama on `localhost`), grounded in the real `--help` output of
+  the command so a small model does not have to guess what a flag does, and cached on disk
+  so repeated questions are free and offline.
 - **Single static binary** — written in Rust, no runtime required.
 
 ## Installation
@@ -102,20 +107,53 @@ e.g. `ls file?.txt`, is inserted normally, so globs keep working.
 ```console
 qmark suggest "git"          # contextual help for a (partial) command line
 qmark explain "rm -rf ./x"   # plain-English explanation (AI)
+qmark ai status              # endpoint, model, reachability, cache size
+qmark ai model               # pick/install a model interactively
 qmark init zsh|bash          # print the shell integration snippet
 qmark --help                 # full CLI reference
 ```
 
+## AI setup (local-first)
+
+`explain` talks to an OpenAI-compatible chat-completions endpoint — by default
+`http://localhost:11434/v1`, i.e. [Ollama](https://ollama.com) running on your own machine.
+Nothing is sent anywhere until you ask it to be.
+
+```sh
+# 1. install Ollama (see https://ollama.com/download)
+# 2. pick a model — interactive picker, lists what's installed plus a
+#    curated download list; downloading asks for confirmation first
+qmark ai model
+# 3. ask away
+qmark explain "tar -xzvf archive.tar.gz -C /tmp"
+```
+
+`qmark ai status` reports the endpoint, the resolved model and where it came from,
+whether the endpoint is reachable, and the on-disk cache size — the diagnostic to run
+first when something looks wrong. Any OpenAI chat-completions-compatible server works
+(llama.cpp, LM Studio, vLLM, or a hosted aggregator such as Groq/Together/OpenRouter) —
+just point `QMARK_AI_BASE_URL` at it.
+
 ## Configuration
 
 Configuration lives in environment variables for now (a config file is on the
-[roadmap](docs/ROADMAP.md)):
+[roadmap](docs/ROADMAP.md)); the one exception is the selected model, which persists to
+`~/.config/qmark/model` so `qmark ai model` behaves like a real selection.
 
-| Variable            | Purpose                                              |
-| ------------------- | ---------------------------------------------------- |
-| `QMARK_AI_PROVIDER` | AI backend for `explain` (not wired up yet)          |
-| `QMARK_AI_API_KEY`  | API key for the AI backend                           |
-| `QMARK_NO_BIND`     | Set to `1` to load the integration without the `?` key binding |
+| Variable            | Default                      | Purpose                                                            |
+| ------------------- | ----------------------------- | ------------------------------------------------------------------ |
+| `QMARK_AI_BASE_URL` | `http://localhost:11434/v1`   | Endpoint `explain` talks to. Trailing slash tolerated.              |
+| `QMARK_AI_MODEL`    | *(see below)*                  | Model id sent in the request; wins over the persisted selection.   |
+| `QMARK_AI_API_KEY`  | *(unset)*                      | Sent as `Authorization: Bearer` only when set. Never logged.       |
+| `QMARK_AI_TIMEOUT`  | `60`                           | Request timeout, in seconds.                                       |
+| `QMARK_NO_BIND`     | *(unset)*                      | Set to `1` to load the shell integration without the `?` key binding. |
+
+Model resolution order: `QMARK_AI_MODEL` → `~/.config/qmark/model` (written by
+`qmark ai model`) → the built-in default, `qwen2.5-coder:3b`.
+
+When the endpoint is not local (not `localhost`/`127.0.0.1`/`::1`), qmark redacts obvious
+secrets — password/token/API-key flag values, `sk-`/`ghp_`-style tokens, `KEY=`/`SECRET=`
+assignments — from the command line before sending it. See [SECURITY.md](SECURITY.md).
 
 ## How it works
 
@@ -133,7 +171,7 @@ flowchart LR
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design — the `?` binding
-rules, the help-resolution ladder, and the AI provider plan. For a walkthrough of the
+rules, the help-resolution ladder, and the `explain` AI backend. For a walkthrough of the
 project as slides: [`docs/SLIDES.md`](docs/SLIDES.md) (or the rendered
 [PDF](docs/qmark-deck.pdf)).
 
@@ -142,7 +180,7 @@ project as slides: [`docs/SLIDES.md`](docs/SLIDES.md) (or the rendered
 The full roadmap is in [docs/ROADMAP.md](docs/ROADMAP.md). Highlights:
 
 - v0: repo scaffold, CLI skeleton, zsh/bash `?` binding, `--help`-based suggestions
-- v0.2: AI backend for `explain` (provider-agnostic), offline cache
+- v0.2: local-first AI backend for `explain`, offline cache, `qmark ai status`/`qmark ai model`
 - v0.3: PowerShell support, richer help sources (tldr pages, man parsing)
 
 ## Contributing

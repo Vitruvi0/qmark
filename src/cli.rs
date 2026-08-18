@@ -35,6 +35,22 @@ pub enum Command {
         #[arg(value_enum)]
         shell: Shell,
     },
+    /// Inspect or configure the AI backend used by `explain`
+    Ai {
+        #[command(subcommand)]
+        command: AiCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AiCommand {
+    /// Endpoint, model and its source, reachability, and cache size
+    Status,
+    /// Pick a model interactively, or set one directly by name
+    Model {
+        /// Model to set directly (skips the picker; not validated against any list)
+        name: Option<String>,
+    },
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
