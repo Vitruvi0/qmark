@@ -6,11 +6,11 @@ class: invert
 ---
 
 <!--
-Source of truth for the deck. The images in assets/slides/ and the PDF are
-derived from this file — regenerate both after editing it:
+Source of truth for the deck. The images in docs/slides/ and docs/qmark-deck.pdf
+are derived from this file — regenerate both after editing it:
 
-  npx @marp-team/marp-cli@latest docs/SLIDES.md --images png -o assets/slides/slide.png
-  npx @marp-team/marp-cli@latest docs/SLIDES.md --pdf --allow-local-files -o docs/qmark-deck.pdf
+  npx @marp-team/marp-cli@latest docs/SLIDES.md --images png -o docs/slides/slide.png
+  npx @marp-team/marp-cli@latest docs/SLIDES.md --pdf -o docs/qmark-deck.pdf
 
 Console blocks are copied from the real binary output. Keep them that way.
 -->

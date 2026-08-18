@@ -34,9 +34,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the choice. Its text is the binary's real output.
 - Diagrams in `docs/ARCHITECTURE.md` (mermaid, rendered natively by GitHub): shell layer ↔
   binary dataflow, the `?` binding decision rules, and the help-resolution ladder.
-- Slide deck rendered to images (`assets/slides/slide.001.png` … `012.png`) and to
-  `docs/qmark-deck.pdf`, shown as a clickable grid near the top of the README.
-  `docs/SLIDES.md` stays the source; the render commands are documented in its header.
+- Slide deck rendered to images (`docs/slides/slide.001.png` … `012.png`) and to
+  `docs/qmark-deck.pdf`, linked from the README rather than embedded in it — the deck lives
+  under `docs/`. `docs/SLIDES.md` stays the source; the render commands are documented in
+  its header.
 - Two new slides: the interactive picker and subcommand awareness (`git mv ?`).
 
 - Repository scaffold: README, MIT license, contributing guide, code of conduct, security
