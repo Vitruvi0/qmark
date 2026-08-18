@@ -180,15 +180,16 @@ fn suggest_empty_line_is_friendly() {
         .stdout(predicate::str::contains("Type part of a command"));
 }
 
-/// A temp dir for one test's `$XDG_CACHE_HOME`, so a cache hit from an
-/// earlier run (or a concurrently running test) can never make this test's
-/// backend call silently not happen. Cleaned up on drop.
-struct TempCacheDir(std::path::PathBuf);
+/// A fresh temp dir for one test's env var (`$XDG_CACHE_HOME`,
+/// `$XDG_CONFIG_HOME`, ...), so a leftover file from an earlier run (or a
+/// concurrently running test) can never make this test's behaviour
+/// ambiguous. Cleaned up on drop.
+struct TempDir(std::path::PathBuf);
 
-impl TempCacheDir {
+impl TempDir {
     fn new(name: &str) -> Self {
         let dir = std::env::temp_dir().join(format!(
-            "qmark-cli-test-cache-{name}-{}-{:?}",
+            "qmark-cli-test-{name}-{}-{:?}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -196,11 +197,11 @@ impl TempCacheDir {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        TempCacheDir(dir)
+        TempDir(dir)
     }
 }
 
-impl Drop for TempCacheDir {
+impl Drop for TempDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
@@ -235,7 +236,7 @@ fn explain_calls_local_backend_and_prints_the_explanation() {
         json_body
     );
     let port = spawn_fake_backend(response);
-    let cache = TempCacheDir::new("success");
+    let cache = TempDir::new("success");
 
     qmark()
         .args(["explain", "--", "tar -xzvf archive.tar.gz -C /tmp"])
@@ -253,7 +254,7 @@ fn explain_against_a_closed_port_fails_instructively() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
     let port = listener.local_addr().unwrap().port();
     drop(listener);
-    let cache = TempCacheDir::new("closed-port");
+    let cache = TempDir::new("closed-port");
 
     qmark()
         .args(["explain", "--", "tar -xzf archive.tar.gz"])
@@ -276,7 +277,7 @@ fn explain_on_a_flag_first_line_fails_gracefully_without_panicking() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
     let port = listener.local_addr().unwrap().port();
     drop(listener);
-    let cache = TempCacheDir::new("flag-first-line");
+    let cache = TempDir::new("flag-first-line");
 
     qmark()
         .args(["explain", "--", "-x foo"])
@@ -287,4 +288,95 @@ fn explain_on_a_flag_first_line_fails_gracefully_without_panicking() {
         .failure()
         .code(1)
         .stderr(predicate::str::contains("qmark ai model"));
+}
+
+// -- `qmark ai status` -------------------------------------------------
+
+#[test]
+fn ai_status_against_canned_backend_reports_reachable_and_model_source() {
+    let json_body = r#"{"data":[{"id":"qwen2.5-coder:3b"}]}"#;
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        json_body.len(),
+        json_body
+    );
+    let port = spawn_fake_backend(response);
+    let cache = TempDir::new("status-reachable-cache");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("reachable")
+                .and(predicate::str::contains("unreachable").not()),
+        )
+        .stdout(predicate::str::contains("test-model"))
+        .stdout(predicate::str::contains("$QMARK_AI_MODEL"));
+}
+
+#[test]
+fn ai_status_against_closed_port_reports_unreachable_and_still_exits_zero() {
+    // `ai status` is a diagnostic, not a health check that should fail the
+    // command — an unreachable backend is reported, never a non-zero exit.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let cache = TempDir::new("status-unreachable-cache");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("unreachable"));
+}
+
+// -- `qmark ai model` ---------------------------------------------------
+
+#[test]
+fn ai_model_without_tty_falls_back_to_plain_listing_without_prompting() {
+    // Bind then drop: a closed port so the (best-effort) installed-models
+    // fetch fails fast and deterministically instead of depending on
+    // whatever may or may not be listening on the default endpoint.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+
+    qmark()
+        .args(["ai", "model"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("available to download"))
+        .stdout(predicate::str::contains("qwen2.5-coder:1.5b"))
+        .stdout(predicate::str::contains("qmark ai model <any-name>"));
+}
+
+#[test]
+fn ai_model_name_writes_the_model_file_and_status_reports_source_file() {
+    let config = TempDir::new("model-config");
+    let cache = TempDir::new("model-status-cache");
+
+    qmark()
+        .args(["ai", "model", "somename"])
+        .env("XDG_CONFIG_HOME", &config.0)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("somename"));
+
+    qmark()
+        .args(["ai", "status"])
+        .env("XDG_CONFIG_HOME", &config.0)
+        .env("XDG_CACHE_HOME", &cache.0)
+        .env_remove("QMARK_AI_MODEL")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("somename"))
+        .stdout(predicate::str::contains(config.0.display().to_string()));
 }

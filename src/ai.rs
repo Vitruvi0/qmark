@@ -6,6 +6,8 @@
 //! somewhere else on purpose.
 
 mod cache;
+mod model;
+mod status;
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -74,6 +76,18 @@ pub fn explain(line: &str) -> Result<()> {
     Ok(())
 }
 
+/// `qmark ai status` — endpoint, model and its source, reachability, cache
+/// size (spec §7).
+pub fn status() -> Result<()> {
+    status::run()
+}
+
+/// `qmark ai model` — interactive picker, or set the model directly with
+/// `name` (spec §3).
+pub fn model(name: Option<String>) -> Result<()> {
+    model::run(name)
+}
+
 // ---------------------------------------------------------------------------
 // Configuration (spec §2)
 
@@ -131,6 +145,31 @@ fn resolve_timeout_from(env: Option<String>) -> u64 {
     env.and_then(|s| s.trim().parse::<u64>().ok())
         .filter(|&secs| secs > 0)
         .unwrap_or(DEFAULT_TIMEOUT_SECS)
+}
+
+/// Reachability/listing probes use a short fixed timeout rather than
+/// `QMARK_AI_TIMEOUT`, which sizes generation, not a liveness check (spec
+/// §7).
+const PROBE_TIMEOUT_SECS: u64 = 5;
+
+/// `GET {base_url}/models`, the OpenAI-compatible listing endpoint — the
+/// same call `qmark ai status`'s reachability probe and the model picker's
+/// installed-models listing both use (spec §7: "the same call the picker
+/// uses"). Returns the raw response body on a 2xx status.
+pub(crate) fn fetch_models_body(base_url: &str) -> Result<String> {
+    let agent = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(PROBE_TIMEOUT_SECS)))
+        .http_status_as_error(false)
+        .build()
+        .new_agent();
+    let mut resp = agent
+        .get(format!("{base_url}/models"))
+        .call()
+        .context("could not reach the AI backend")?;
+    if !resp.status().is_success() {
+        bail!("{base_url} returned {}", resp.status());
+    }
+    Ok(resp.body_mut().read_to_string().unwrap_or_default())
 }
 
 // ---------------------------------------------------------------------------

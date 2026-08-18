@@ -65,10 +65,7 @@ pub(crate) fn write(dir: &Path, model: &str, line: &str, explanation: &str) -> R
 }
 
 /// Entry count and total size in bytes of the cache directory, for `qmark ai
-/// status` (Task 2). A missing directory reports as empty rather than an
-/// error.
-// ponytail: not called yet — `qmark ai status` (Task 2) is its first caller.
-#[allow(dead_code)]
+/// status`. A missing directory reports as empty rather than an error.
 pub(crate) fn stats(dir: &Path) -> (usize, u64) {
     let mut count = 0usize;
     let mut bytes = 0u64;
