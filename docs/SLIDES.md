@@ -195,4 +195,4 @@ Then type a command, a space, and `?`.
 
 **github.com/Vitruvi0/qmark** — MIT licensed
 
-Contributions welcome once public — see `CONTRIBUTING.md`.
+Contributions welcome — see `CONTRIBUTING.md`.

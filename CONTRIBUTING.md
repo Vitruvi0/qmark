@@ -1,8 +1,7 @@
 # Contributing to qmark
 
-Thanks for your interest in qmark! The repository is currently private and pre-alpha, but we
-develop it as if it were public — the same rules below apply to the core team and, later, to
-external contributors.
+Thanks for your interest in qmark! The project is pre-alpha and under active development —
+the same rules below apply to the core team and to external contributors alike.
 
 ## Development setup
 

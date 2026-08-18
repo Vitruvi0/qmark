@@ -55,9 +55,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   its header.
 - Two new slides: the interactive picker and subcommand awareness (`git mv ?`).
 
-- Repository scaffold: README, MIT license, contributing guide, code of conduct, security
-  policy, issue/PR templates, CI workflow.
-
 ### Changed
 
 - `qmark explain` is no longer a stub: it calls the configured AI backend (local by default)
@@ -66,13 +63,23 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `QMARK_AI_PROVIDER` removed — with a single wire format it selected nothing, and it was
   documented but never implemented. Replaced by `QMARK_AI_BASE_URL`, `QMARK_AI_MODEL`,
   `QMARK_AI_API_KEY`, `QMARK_AI_TIMEOUT`.
-- README, `docs/ARCHITECTURE.md` and `docs/SLIDES.md` now describe what actually ships: the
-  `?` examples show the real picker output instead of invented help text, `explain` is shown
-  as the stub it currently is, and "base command only" is gone from the known limitations
-  (subcommand awareness landed).
+- README, `docs/ARCHITECTURE.md` and `docs/SLIDES.md` now show the real picker output in the
+  `?` examples instead of invented help text, and "base command only" is gone from the known
+  limitations (subcommand awareness landed).
+
+## [0.1.0] - 2026-08-16
+
+### Added
+
+- Repository scaffold: README, MIT license, contributing guide, code of conduct, security
+  policy, issue/PR templates, CI workflow.
 - `qmark` CLI skeleton (Rust + clap) with three subcommands:
   - `suggest` — contextual help for a (partial) command line, based on `--help` harvesting;
   - `explain` — plain-English explanation of a command line (AI backend not wired up yet);
   - `init` — prints the shell integration snippet for zsh or bash.
 - zsh and bash integrations: Cisco-style `?` at the end of a command shows contextual help;
   `?` inside a word is inserted normally so globs keep working.
+
+[Unreleased]: https://github.com/Vitruvi0/qmark/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Vitruvi0/qmark/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/Vitruvi0/qmark/releases/tag/v0.1.0

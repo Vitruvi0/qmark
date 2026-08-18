@@ -1,6 +1,6 @@
 # `qmark explain` — AI backend design (v0.2)
 
-Status: approved, not yet implemented.
+Status: implemented in v0.2 (`src/ai.rs`).
 Supersedes the "The explain command (AI)" sketch in `docs/ARCHITECTURE.md`.
 
 ## Goals

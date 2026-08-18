@@ -176,8 +176,8 @@ The full roadmap is in [docs/ROADMAP.md](docs/ROADMAP.md). Highlights:
 
 ## Contributing
 
-Contributions are welcome once the repository is public. In the meantime, the workflow we
-follow ourselves is documented in [CONTRIBUTING.md](CONTRIBUTING.md). Please also read the
+Contributions are welcome. The workflow is documented in
+[CONTRIBUTING.md](CONTRIBUTING.md). Please also read the
 [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
