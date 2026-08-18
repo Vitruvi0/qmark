@@ -180,12 +180,89 @@ fn suggest_empty_line_is_friendly() {
         .stdout(predicate::str::contains("Type part of a command"));
 }
 
+/// A temp dir for one test's `$XDG_CACHE_HOME`, so a cache hit from an
+/// earlier run (or a concurrently running test) can never make this test's
+/// backend call silently not happen. Cleaned up on drop.
+struct TempCacheDir(std::path::PathBuf);
+
+impl TempCacheDir {
+    fn new(name: &str) -> Self {
+        let dir = std::env::temp_dir().join(format!(
+            "qmark-cli-test-cache-{name}-{}-{:?}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        TempCacheDir(dir)
+    }
+}
+
+impl Drop for TempCacheDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Accept one connection on an ephemeral port and write back `response`
+/// (a raw HTTP/1.1 response, status line through body) verbatim. Returns
+/// the port to point `QMARK_AI_BASE_URL` at.
+fn spawn_fake_backend(response: String) -> u16 {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        use std::io::{Read, Write};
+        if let Ok((mut stream, _)) = listener.accept() {
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(500)));
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf); // drain the request; content doesn't matter here
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+        }
+    });
+    port
+}
+
 #[test]
-fn explain_is_an_honest_stub_for_now() {
+fn explain_calls_local_backend_and_prints_the_explanation() {
+    let explanation = "This extracts a gzip-compressed tar archive into /tmp.";
+    let json_body = format!(r#"{{"choices":[{{"message":{{"content":"{explanation}"}}}}]}}"#);
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        json_body.len(),
+        json_body
+    );
+    let port = spawn_fake_backend(response);
+    let cache = TempCacheDir::new("success");
+
     qmark()
-        .args(["explain", "--", "tar -xzf archive.tar.gz"])
+        .args(["explain", "--", "tar -xzvf archive.tar.gz -C /tmp"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
         .assert()
         .success()
-        .stdout(predicate::str::contains("tar -xzf archive.tar.gz"))
-        .stdout(predicate::str::contains("not wired up yet"));
+        .stdout(predicate::str::contains(explanation));
+}
+
+#[test]
+fn explain_against_a_closed_port_fails_instructively() {
+    // Bind then immediately drop, guaranteeing the port is closed.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let cache = TempCacheDir::new("closed-port");
+
+    qmark()
+        .args(["explain", "--", "tar -xzf archive.tar.gz"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("qmark ai model"))
+        .stderr(predicate::str::contains("suggest"));
 }
