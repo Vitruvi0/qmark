@@ -37,7 +37,9 @@ Things we consider security-relevant in this project:
   files, history) is in scope. For non-local endpoints, obvious secrets (password/token/
   API-key flag values, `sk-`/`ghp_`-style tokens, `KEY=`/`SECRET=`-style assignments) are
   redacted before the request is sent — a gap in that redaction is in scope. Local traffic
-  is not redacted, since it never leaves the machine.
+  is not redacted, since it never leaves the machine. To ground its explanation, `explain`
+  also runs the target program with `--help` locally, the same way `qmark suggest` does (via
+  `suggest::harvest_entries`) — the same execution-scope considerations below apply.
 - `qmark ai model` may invoke the external `ollama` binary (`ollama pull <name>`) to install
   a model. This runs only after an explicit `y/N` confirmation — never automatically and
   never as a side effect of `qmark explain`. Anything that would trigger a pull without that

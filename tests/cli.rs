@@ -318,6 +318,83 @@ fn ai_status_against_canned_backend_reports_reachable_and_model_source() {
         .stdout(predicate::str::contains("$QMARK_AI_MODEL"));
 }
 
+/// Like `spawn_fake_backend`, but replies 200 to `/models` only when the
+/// request carries `Authorization: Bearer <expected_key>`, and 401
+/// otherwise — modelling a hosted endpoint (Groq, Together, OpenRouter)
+/// that requires the key on `/models` the same way `call_backend` already
+/// sends it on `/chat/completions`.
+fn spawn_fake_backend_requiring_auth(expected_key: &str) -> u16 {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    let expected_header = format!("authorization: bearer {}", expected_key.to_lowercase());
+    std::thread::spawn(move || {
+        use std::io::{Read, Write};
+        if let Ok((mut stream, _)) = listener.accept() {
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(500)));
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_lowercase();
+            let response = if request.contains(&expected_header) {
+                let body = r#"{"data":[]}"#;
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                )
+            } else {
+                "HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .to_string()
+            };
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+        }
+    });
+    port
+}
+
+#[test]
+fn ai_status_sends_api_key_on_the_models_probe() {
+    // Regression for the bug where `fetch_models_body` (used by both `ai
+    // status`'s reachability probe and `ai model`'s installed-models list)
+    // never sent `Authorization`, even though `call_backend` did — hosted
+    // endpoints reject an unauthenticated `/models` with 401/403, so a
+    // working endpoint with a key configured was reported "unreachable".
+    let port = spawn_fake_backend_requiring_auth("sk-test-key-123");
+    let cache = TempDir::new("status-api-key-header");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("QMARK_AI_API_KEY", "sk-test-key-123")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("reachable")
+                .and(predicate::str::contains("unreachable").not()),
+        );
+}
+
+#[test]
+fn ai_status_without_api_key_reports_unreachable_against_an_auth_requiring_endpoint() {
+    // Sanity check for the harness above, and proof the fix is
+    // conditional: without a key, the same endpoint still rejects the
+    // request, so "unreachable" is the honest answer.
+    let port = spawn_fake_backend_requiring_auth("sk-test-key-123");
+    let cache = TempDir::new("status-no-api-key-header");
+
+    qmark()
+        .args(["ai", "status"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env_remove("QMARK_AI_API_KEY")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("unreachable"));
+}
+
 #[test]
 fn ai_status_against_closed_port_reports_unreachable_and_still_exits_zero() {
     // `ai status` is a diagnostic, not a health check that should fail the

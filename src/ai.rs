@@ -162,10 +162,14 @@ pub(crate) fn fetch_models_body(base_url: &str) -> Result<String> {
         .http_status_as_error(false)
         .build()
         .new_agent();
-    let mut resp = agent
-        .get(format!("{base_url}/models"))
-        .call()
-        .context("could not reach the AI backend")?;
+
+    let mut req = agent.get(format!("{base_url}/models"));
+    let api_key = std::env::var("QMARK_AI_API_KEY").ok();
+    if let Some(key) = api_key.as_deref() {
+        req = req.header("Authorization", format!("Bearer {key}"));
+    }
+
+    let mut resp = req.call().context("could not reach the AI backend")?;
     if !resp.status().is_success() {
         bail!("{base_url} returned {}", resp.status());
     }
