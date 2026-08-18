@@ -266,3 +266,25 @@ fn explain_against_a_closed_port_fails_instructively() {
         .stderr(predicate::str::contains("qmark ai model"))
         .stderr(predicate::str::contains("suggest"));
 }
+
+#[test]
+fn explain_on_a_flag_first_line_fails_gracefully_without_panicking() {
+    // A command line that starts with a flag (`-x foo`, bare `-`) makes
+    // suggest::command_chain return an empty Vec; grounding must not panic
+    // indexing into it — it should just fall through to the ordinary
+    // backend-unreachable error, not a Rust panic (exit code 101).
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let cache = TempCacheDir::new("flag-first-line");
+
+    qmark()
+        .args(["explain", "--", "-x foo"])
+        .env("QMARK_AI_BASE_URL", format!("http://127.0.0.1:{port}/v1"))
+        .env("QMARK_AI_MODEL", "test-model")
+        .env("XDG_CACHE_HOME", &cache.0)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("qmark ai model"));
+}

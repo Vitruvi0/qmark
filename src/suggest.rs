@@ -79,7 +79,9 @@ pub fn harvest_entries(line: &str) -> Option<(String, Vec<Entry>)> {
         return None;
     }
     let chain = command_chain(line);
-    let base = chain[0];
+    // A line that starts with a flag (`-x foo`, bare `-`) yields an empty
+    // chain — nothing to look up, and no base command to panic on.
+    let &base = chain.first()?;
 
     let (title, mut entries) = if in_path(base) {
         let (title, _text, entries) = harvest(&chain).ok()?;
@@ -580,6 +582,15 @@ Exit status:
     #[test]
     fn harvest_entries_none_for_empty_line() {
         assert!(harvest_entries("   ").is_none());
+    }
+
+    #[test]
+    fn harvest_entries_none_for_flag_first_line() {
+        // command_chain returns an empty Vec when the line starts with a
+        // flag; harvest_entries must not panic indexing into it.
+        assert!(harvest_entries("-x foo").is_none());
+        assert!(harvest_entries("-la").is_none());
+        assert!(harvest_entries("-").is_none());
     }
 
     #[test]
