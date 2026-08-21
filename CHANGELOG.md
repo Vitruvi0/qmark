@@ -7,6 +7,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `qmark find <name>`: locate headers, libraries and directories by (partial, case-insensitive)
+  name under the usual include/lib locations and the `C_INCLUDE_PATH`/`CPATH`/`LIBRARY_PATH`/
+  `LD_LIBRARY_PATH` search paths. `--exact` for whole-name matches, `--in DIR` to search elsewhere.
+
 ## [0.2.0] - 2026-08-18
 
 ### Added

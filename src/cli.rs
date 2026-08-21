@@ -35,6 +35,20 @@ pub enum Command {
         #[arg(value_enum)]
         shell: Shell,
     },
+    /// Find a header, library or directory by name (e.g. `qmark find stdio.h`)
+    ///
+    /// Searches the usual include/lib locations (plus C_INCLUDE_PATH, CPATH,
+    /// LIBRARY_PATH and LD_LIBRARY_PATH) and prints every matching path.
+    Find {
+        /// Name (or part of it) to look for; matching is case-insensitive
+        name: String,
+        /// Only report entries whose name matches exactly
+        #[arg(long)]
+        exact: bool,
+        /// Search these directories instead of the defaults (repeatable)
+        #[arg(long = "in", value_name = "DIR")]
+        roots: Vec<std::path::PathBuf>,
+    },
     /// Inspect or configure the AI backend used by `explain`
     Ai {
         #[command(subcommand)]

@@ -457,3 +457,32 @@ fn ai_model_name_writes_the_model_file_and_status_reports_source_file() {
         .stdout(predicate::str::contains("somename"))
         .stdout(predicate::str::contains(config.0.display().to_string()));
 }
+
+#[test]
+fn find_locates_file_and_dir_in_given_root() {
+    let tmp = std::env::temp_dir().join(format!("qmark-find-{}", std::process::id()));
+    std::fs::create_dir_all(tmp.join("sub/stdio")).unwrap();
+    std::fs::write(tmp.join("sub/stdio.h"), "").unwrap();
+    std::fs::write(tmp.join("other.h"), "").unwrap();
+    qmark()
+        .args(["find", "STDIO", "--in"])
+        .arg(&tmp)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("sub/stdio.h"))
+        .stdout(predicate::str::contains("sub/stdio\n"))
+        .stdout(predicate::str::contains("other.h").not());
+    qmark()
+        .args(["find", "stdio", "--exact", "--in"])
+        .arg(&tmp)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("stdio.h").not());
+    qmark()
+        .args(["find", "nope.h", "--in"])
+        .arg(&tmp)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not found"));
+    std::fs::remove_dir_all(tmp).unwrap();
+}

@@ -63,6 +63,9 @@ Tip: `qmark explain "git mv"` gives a plain-English explanation (AI).
   Local by default (talks to Ollama on `localhost`), grounded in the real `--help` output of
   the command so a small model does not have to guess what a flag does, and cached on disk
   so repeated questions are free and offline.
+- **`qmark find`** — locate a header, library or directory by name: `qmark find stdio.h`
+  walks the usual include/lib locations (and your `C_INCLUDE_PATH`/`LD_LIBRARY_PATH`) and
+  prints every match. `--exact` for whole-name matches, `--in DIR` to look elsewhere.
 - **Single static binary** — written in Rust, no runtime required.
 
 ## Installation
@@ -88,6 +91,9 @@ eval "$(qmark init zsh)"
 # ~/.bashrc
 eval "$(qmark init bash)"
 ```
+
+Then restart your shell (or run `source ~/.zshrc` / `source ~/.bashrc`) — the `?` binding
+only takes effect in shells started after the line is added.
 
 After that, ending a command with a space and pressing `?` opens an interactive menu of
 what can come next (↑↓ to move, Enter to insert, Esc to close). A `?` typed inside a word,
